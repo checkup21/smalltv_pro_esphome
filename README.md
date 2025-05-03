@@ -19,6 +19,8 @@ When using this repo as is, your device will look like this:
 * ESPHome itself must initially be flashed via serial onto the device. After that, it will offer an easy to use OTA update functionality.
 * Make sure you have a "small tv pro" not a "small tv".
 
+<img src="images/smalltv_pro_opened_anon.jpg" alt="drawing" width="50%"/>
+
 <img src="images/smalltv_pro_initial_flash_anon.jpg" alt="drawing" width="50%"/>
 
 ## Step by step
