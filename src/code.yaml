@@ -1,0 +1,214 @@
+esphome:
+  name: smalltvpro
+  friendly_name: smalltvpro
+
+esp32:
+  board: esp32dev
+  framework:
+    type: esp-idf
+
+# Enable logging
+logger:
+  level: DEBUG
+  baud_rate: 0 
+  
+# Enable Home Assistant API
+api:
+  encryption:
+    key: "_SETME_"
+
+ota:
+  - platform: esphome
+    password: "_SETME_"
+
+time:
+  - platform: homeassistant
+    timezone: "Europe/Berlin"
+    id: ha_time
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+
+  # Enable fallback hotspot (captive portal) in case wifi connection fails
+  ap:
+    ssid: "Smalltvpro Fallback Hotspot"
+    password: "_SETME_"
+
+captive_portal:
+
+external_components:
+ - source: github://clydebarrow/esphome@lvgl
+   components: [ lvgl ]
+
+# Define a PWM output on the ESP32
+output:
+  - platform: ledc
+    pin: GPIO25
+    inverted: True
+    id: backlight_pwm
+
+# Define a monochromatic, dimmable light for the backlight
+light:
+  - platform: monochromatic
+    output: backlight_pwm
+    name: "Display Backlight"
+    id: back_light
+    restore_mode: ALWAYS_ON
+
+esp32_touch:
+ # setup_mode: true
+
+spi:
+  clk_pin: GPIO18
+  mosi_pin: GPIO23
+  interface: hardware
+  id: spihwd
+
+color:
+  - id: my_red
+    red: 100%
+    green: 0%
+    blue: 0%
+  - id: my_orange
+    red: 100%
+    green: 50%
+    blue: 0%
+  - id: my_yellow
+    red: 100%
+    green: 100%
+    blue: 0%
+  - id: my_green
+    red: 0%
+    green: 100%
+    blue: 0%
+  - id: my_blue
+    red: 0%
+    green: 0%
+    blue: 100%
+  - id: my_teal
+    red: 0%
+    green: 100%
+    blue: 100%
+  - id: my_gray
+    red: 70%
+    green: 70%
+    blue: 70%
+  - id: my_white
+    red: 100%
+    green: 100%
+    blue: 100%
+  - id: my_black
+    red: 0%
+    green: 0%
+    blue: 0%
+
+font:
+  - file: "gfonts://Roboto"
+    id: font_48
+    size: 48
+  - file: "gfonts://Roboto"
+    id: font_36
+    size: 36
+  - file: "gfonts://Roboto"
+    id: font_24
+    size: 24
+  - file: "gfonts://Roboto"
+    id: font_12
+    size: 12
+
+
+sensor:
+  - platform: homeassistant
+    entity_id: sensor.strom2
+    id: strom2
+  - platform: homeassistant
+    entity_id: sensor.hoy_hm_1200_power
+    id: hoy_ac_power
+  - platform: homeassistant
+    entity_id: sensor.hoy_hm_1200_yieldday
+    id: hoy_yieldday
+  - platform: homeassistant
+    entity_id: sensor.hoy_hm_1200_temperature
+    id: hoy_temp
+  - platform: homeassistant
+    entity_id: sensor.fritz_box_fon_wlan_7390_kib_s_received
+    id: fritz_down
+  - platform: homeassistant
+    entity_id: sensor.fritz_box_fon_wlan_7390_kib_s_sent
+    id: fritz_up
+  - platform: homeassistant
+    entity_id: sensor.pi_hole_ads_blocked_today
+    id: pi_blocked
+
+
+display:
+  - platform: st7789v
+    id: lcd_display
+    model: "custom"
+    spi_id: spihwd
+    #data_rate: 20MHz #oringal device uses 20mhz - 40 is default and works - does not work at 80mhz
+    #cs_pin: GPIO03 #CS pin is connected to gnd I believe
+    dc_pin: GPIO02
+    reset_pin: GPIO04
+    spi_mode: MODE3   #since no cs pin default is mode0
+    #eightbitcolor: True
+    width: 240
+    height: 240
+    offset_height: 0
+    offset_width: 0
+    #invert_colors: true
+    #update_interval: never
+    update_interval: 5s
+    #auto_clear_enabled: false
+    lambda: |-
+      // offset from the left
+      int x_offset = 3;
+
+      // offset to shift y position down
+      int y_shift = 30;
+      // accumulator for y and initial offset
+      int y_accu = 10;
+
+      // Calculate the center positions
+      int center_x = it.get_width() / 2;
+      int center_y = it.get_height() / 2;
+
+      // Print "Hello World" centered
+      //it.printf(center_x, center_y - 20, id(font_24), TextAlign::CENTER, "Hello World");
+
+      // Print the current time centered below "Hello World"
+      /*auto time = id(ha_time).now();
+      time_t time_t_value = time.timestamp;
+      char buf[9]; // Buffer to hold the time string
+      strftime(buf, sizeof(buf), "%H:%M:%S", localtime(&time_t_value));
+      it.printf(center_x, center_y + 20, id(font_24), TextAlign::CENTER, buf);
+      */
+
+      // strom2
+      it.printf(x_offset, y_accu, id(font_24), "Sum (W): %.0f", id(strom2).state);
+      y_accu += y_shift;
+
+      // solar spot meassure
+      it.printf(x_offset, y_accu, id(font_24), "Slr (W): %.0f", id(hoy_ac_power).state);
+      y_accu += y_shift;
+      
+      // solar yield day
+      it.printf(x_offset, y_accu, id(font_24), "Slr YD (Wh): %.0f", id(hoy_yieldday).state);
+      y_accu += y_shift;
+      
+      // solar temp
+      it.printf(x_offset, y_accu, id(font_24), "Slr T (C): %.1f", id(hoy_temp).state);
+      y_accu += y_shift;
+
+      // fritz down
+      it.printf(x_offset, y_accu, id(font_24), "Dwn (KiB/s): %.0f", id(fritz_down).state);
+      y_accu += y_shift;
+
+      // fritz up
+      it.printf(x_offset, y_accu, id(font_24), "Up (KiB/s): %.0f", id(fritz_up).state);
+      y_accu += y_shift;
+
+      // pi blocked
+      it.printf(x_offset, y_accu, id(font_24), "Piblckd: %.0f", id(pi_blocked).state);
+      y_accu += y_shift;
